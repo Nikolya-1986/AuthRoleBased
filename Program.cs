@@ -7,6 +7,9 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
+
+builder.Services.AddControllers();
+ 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -46,6 +49,7 @@ builder.Services
     {
         options.SaveToken = true;
         options.RequireHttpsMetadata= false;
+        #pragma warning disable CS8604 // Possible null reference argument.
         options.TokenValidationParameters = new TokenValidationParameters()
         {
             ValidateIssuer = true,
@@ -54,6 +58,7 @@ builder.Services
             ValidAudience = builder.Configuration["JWT:ValidAudience"],
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Secret"]))
         };
+        #pragma warning restore CS8604 // Possible null reference argument.
     }
 );
 
