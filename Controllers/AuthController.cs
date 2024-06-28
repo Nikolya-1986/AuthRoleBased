@@ -1,7 +1,11 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using AuthRoleBased.Core.Dtos;
 using AuthRoleBased.Core.Dtos.OtherObjects;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
 
 namespace AuthRoleBased.Controllers
 {
@@ -23,6 +27,7 @@ namespace AuthRoleBased.Controllers
             _configuration = configuration;
         }
 
+        // Route For Seeding my roles to DB
         [HttpPost]
         [Route("seed-roles")]
         public async Task<IActionResult> SeedRoles()
@@ -41,6 +46,7 @@ namespace AuthRoleBased.Controllers
             return Ok("Role Seeding Done Successfully");
         }
 
+        // Route -> Register
         [HttpPost]
         [Route("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
@@ -69,6 +75,55 @@ namespace AuthRoleBased.Controllers
             await _userManager.AddToRoleAsync(newUser, StaticUserRoles.USER);
             return Ok("User Creates Successfully");
         }
-    }
 
+        // Route -> Login
+        [HttpPost]
+        [Route("login")]
+        public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
+        {
+            var user = await _userManager.FindByEmailAsync(loginDto.Email);
+
+            if(user is null)
+                return Unauthorized("Invalid Credintails");
+
+            var isPasswordCorrect = await _userManager.CheckPasswordAsync(user, loginDto.Password);
+
+            if(!isPasswordCorrect)
+                return Unauthorized("Invalid Credintails");
+
+            var userRoles = await _userManager.GetRolesAsync(user);
+            #pragma warning disable CS8604 // Possible null reference argument.
+            var authClaims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, user.Email),
+                new Claim(ClaimTypes.NameIdentifier, user.Id),
+                new Claim("JWTID", Guid.NewGuid().ToString()),
+            };
+            #pragma warning restore CS8604 // Possible null reference argument.
+
+            foreach (var userRole in userRoles)
+            {
+                authClaims.Add(new Claim(ClaimTypes.Role, userRole));
+            }
+            var token = GenerateNewJsonWebToken(authClaims);
+            return Ok(token);
+        }
+
+        private string GenerateNewJsonWebToken(List<Claim> claims)
+        {
+            var authSecret = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT:Secret"]));
+
+            var tokenObject = new JwtSecurityToken(
+                    issuer: _configuration["JWT:ValidIssuer"],
+                    audience: _configuration["JWT:ValidAudience"],
+                    expires: DateTime.Now.AddHours(1),
+                    claims: claims,
+                    signingCredentials: new SigningCredentials(authSecret, SecurityAlgorithms.HmacSha256)
+                );
+
+            string token = new JwtSecurityTokenHandler().WriteToken(tokenObject);
+
+            return token;
+        }
+    }
 }
