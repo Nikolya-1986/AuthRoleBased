@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using AuthRoleBased.Core.Dtos;
 using AuthRoleBased.Core.Dtos.OtherObjects;
+using AuthRoleBased.Core.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
@@ -11,13 +12,13 @@ namespace AuthRoleBased.Controllers
 {
     public class AuthController: ControllerBase
     {
-        private readonly UserManager<IdentityUser> _userManager;
+        private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IConfiguration _configuration;
 
 
         public AuthController(
-            UserManager<IdentityUser> userManager,
+            UserManager<ApplicationUser> userManager,
             RoleManager<IdentityRole> roleManager,
             IConfiguration configuration
             )
@@ -55,8 +56,10 @@ namespace AuthRoleBased.Controllers
             if(isExistsUser != null)
                 return BadRequest("Email Alresdy Exist");
             
-            IdentityUser newUser = new IdentityUser()
+            ApplicationUser newUser = new ApplicationUser()
             {
+                FirstName = registerDto.FirstName,
+                LastName = registerDto.LastName,
                 Email = registerDto.Email,
                 UserName = registerDto.UserName,
                 SecurityStamp = Guid.NewGuid().ToString(),
@@ -95,9 +98,11 @@ namespace AuthRoleBased.Controllers
             #pragma warning disable CS8604 // Possible null reference argument.
             var authClaims = new List<Claim>
             {
-                new Claim(ClaimTypes.Name, user.Email),
+                new Claim(ClaimTypes.Name, user.UserName),
                 new Claim(ClaimTypes.NameIdentifier, user.Id),
                 new Claim("JWTID", Guid.NewGuid().ToString()),
+                new Claim("FirstName", user.FirstName),
+                new Claim("LastName", user.LastName),
             };
             #pragma warning restore CS8604 // Possible null reference argument.
 

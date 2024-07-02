@@ -1,5 +1,6 @@
 using System.Text;
 using AuthRoleBased.Core.DBContext;
+using AuthRoleBased.Core.Entities;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -22,7 +23,7 @@ builder.Services.AddDbContext<DbContextApplication>(options =>
 
 // Add Identity
 builder.Services
-    .AddIdentity<IdentityUser, IdentityRole>()
+    .AddIdentity<ApplicationUser, IdentityRole>()
     .AddEntityFrameworkStores<DbContextApplication>()
     .AddDefaultTokenProviders();
 
