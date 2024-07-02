@@ -109,6 +109,33 @@ namespace AuthRoleBased.Controllers
             return Ok(token);
         }
 
+        // Route -> make user -> admin
+        [HttpPost]
+        [Route("make-admin")]
+        public async Task<IActionResult> MakeAdmin([FromBody] UpdatePermissionDto updatePermissionDto)
+        {
+            var user = await _userManager.FindByNameAsync(updatePermissionDto.UserName);
+
+            if(user is null)
+                return BadRequest("Invalid UserName!!!");
+
+            await _userManager.AddToRoleAsync(user, StaticUserRoles.ADMIN);
+            return Ok("User is now an ADMIN");
+        }
+
+        // Route -> make user -> owner
+        [HttpPost]
+        [Route("make-owner")]
+        public async Task<IActionResult> MakeOwner([FromBody] UpdatePermissionDto updatePermissionDto)
+        {
+            var user = await _userManager.FindByNameAsync(updatePermissionDto.UserName);
+
+            if(user is null)
+                return BadRequest("Invalid UserName!!!");
+
+            await _userManager.AddToRoleAsync(user, StaticUserRoles.OWNER);
+            return Ok("User is now an OWNER");
+        }
         private string GenerateNewJsonWebToken(List<Claim> claims)
         {
             var authSecret = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT:Secret"]));
