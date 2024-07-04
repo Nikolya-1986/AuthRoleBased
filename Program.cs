@@ -1,10 +1,13 @@
-using System.Text;
 using AuthRoleBased.Core.DBContext;
 using AuthRoleBased.Core.Entities;
+using AuthRoleBased.Core.Interfaces;
+using AuthRoleBased.Core.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,7 +30,8 @@ builder.Services
     .AddEntityFrameworkStores<DbContextApplication>()
     .AddDefaultTokenProviders();
 
-// Congig Identity
+
+// Config Identity
 builder.Services.Configure<IdentityOptions>(options =>
 {
     options.Password.RequiredLength = 3;
@@ -37,6 +41,7 @@ builder.Services.Configure<IdentityOptions>(options =>
     options.Password.RequireNonAlphanumeric= false;
     options.SignIn.RequireConfirmedEmail = false;
 });
+
 
 // Add Authentication and JwtBearer
 builder.Services
@@ -50,7 +55,6 @@ builder.Services
     {
         options.SaveToken = true;
         options.RequireHttpsMetadata= false;
-        #pragma warning disable CS8604 // Possible null reference argument.
         options.TokenValidationParameters = new TokenValidationParameters()
         {
             ValidateIssuer = true,
@@ -59,12 +63,53 @@ builder.Services
             ValidAudience = builder.Configuration["JWT:ValidAudience"],
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Secret"]))
         };
-        #pragma warning restore CS8604 // Possible null reference argument.
-    }
-);
+    });
 
+
+
+
+// Inject app Dependencies (Dependency Injection)
+builder.Services.AddScoped<IAuthService, AuthService>();
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "Please enter your token with this format: ''Bearer YOUR_TOKEN''",
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+        BearerFormat = "JWT",
+        Scheme = "bearer"
+    });
+    options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Name = "Bearer",
+                In = ParameterLocation.Header,
+                Reference = new OpenApiReference
+                {
+                    Id = "Bearer",
+                    Type = ReferenceType.SecurityScheme
+                }
+            },
+            new List<string>()
+        }
+    });
+});
+
+
+
+
+
+
+// pipeline
 var app = builder.Build();
 
+ 
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
