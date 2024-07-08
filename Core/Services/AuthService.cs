@@ -8,22 +8,26 @@ using AuthRoleBased.Core.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Cryptography;
+using Microsoft.AspNetCore.Mvc;
 
 namespace AuthRoleBased.Core.Services
 {
     public class AuthService : IAuthService
     {
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IConfiguration _configuration;
 
         public AuthService(
             UserManager<ApplicationUser> userManager,
+            SignInManager<ApplicationUser> signInManager,
             RoleManager<IdentityRole> roleManager,
             IConfiguration configuration
             )
         {
             _userManager = userManager;
+            _signInManager = signInManager;
             _roleManager = roleManager;
             _configuration = configuration; 
         }
@@ -159,6 +163,16 @@ namespace AuthRoleBased.Core.Services
             {
                 IsSucceed = true,
                 Message = "User Created Successfully"
+            };
+        }
+
+        public async Task<AuthServiceResponseDto> LogoutAsync()
+        {
+            await _signInManager.SignOutAsync();
+            return new AuthServiceResponseDto()
+            {
+                IsSucceed = true,
+                Message = "User Logout Successfuly"
             };
         }
 

@@ -49,6 +49,19 @@ namespace AuthRoleBased.Controllers
             return Unauthorized(loginResult);
         }
 
+        // Route -> Logout
+        [HttpPost]
+        [Route("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            var loginResult = await _authService.LogoutAsync();
+
+            if(loginResult.IsSucceed)
+                return Ok(loginResult);
+
+            return Unauthorized(loginResult);
+        }
+
         // Route -> make user -> admin
         [HttpPost]
         [Route("make-admin")]
