@@ -7,6 +7,7 @@ using AuthRoleBased.Core.Entities;
 using AuthRoleBased.Core.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Cryptography;
 
 namespace AuthRoleBased.Core.Services
 {
@@ -62,12 +63,15 @@ namespace AuthRoleBased.Core.Services
                 authClaims.Add(new Claim(ClaimTypes.Role, userRole));
             }
 
-            var token = GenerateNewJsonWebToken(authClaims);
+            var accessToken = GenerateAccessToken(authClaims);
+            var refreshToken = GenerateRefreshToken();
 
             return new AuthServiceResponseDto()
             {
                 IsSucceed = true,
-                Message = token
+                Message = "User Login Successfully",
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
             };
         }
 
@@ -182,7 +186,7 @@ namespace AuthRoleBased.Core.Services
             };
         }
 
-        private string GenerateNewJsonWebToken(List<Claim> claims)
+        private string GenerateAccessToken(List<Claim> claims)
         {
             var authSecret = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT:Secret"]));
 
@@ -197,6 +201,16 @@ namespace AuthRoleBased.Core.Services
             string token = new JwtSecurityTokenHandler().WriteToken(tokenObject);
 
             return token;
+        }
+
+        public string GenerateRefreshToken()
+        {
+            var randomNumber = new byte[128];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(randomNumber);
+                return Convert.ToBase64String(randomNumber);
+            }
         }
     }
 }
