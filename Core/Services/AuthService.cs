@@ -76,7 +76,7 @@ namespace AuthRoleBased.Core.Services
                 Message = "User Login Successfully",
                 AccessToken = accessToken,
                 RefreshToken = refreshToken,
-                Roles = StaticUserRoles.USER,
+                Role = StaticUserRoles.USER,
             };
         }
 
