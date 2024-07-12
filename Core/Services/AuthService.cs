@@ -39,7 +39,7 @@ namespace AuthRoleBased.Core.Services
                 return new AuthServiceResponseDto()
                 {
                     IsSucceed = false,
-                    Message = "Invalid Credentials"
+                    Message = "Invalid Credentials",
                 };
 
             var isPasswordCorrect = await _userManager.CheckPasswordAsync(user, loginDto.Password);
@@ -76,6 +76,7 @@ namespace AuthRoleBased.Core.Services
                 Message = "User Login Successfully",
                 AccessToken = accessToken,
                 RefreshToken = refreshToken,
+                Roles = StaticUserRoles.USER,
             };
         }
 
@@ -219,7 +220,7 @@ namespace AuthRoleBased.Core.Services
 
         public string GenerateRefreshToken()
         {
-            var randomNumber = new byte[128];
+            var randomNumber = new byte[486];
             using (var rng = RandomNumberGenerator.Create())
             {
                 rng.GetBytes(randomNumber);

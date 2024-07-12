@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AuthRoleBased.Controllers
 {
+    [Route("auth-role-based/")]
+    [ApiController]
     public class AuthController: ControllerBase
     {
         private readonly IAuthService _authService;

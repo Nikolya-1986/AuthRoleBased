@@ -66,8 +66,6 @@ builder.Services
     });
 
 
-
-
 // Inject app Dependencies (Dependency Injection)
 builder.Services.AddScoped<IAuthService, AuthService>();
 
@@ -101,10 +99,17 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-
-
-
-
+// CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Policy", builder =>
+    {
+        builder
+        .AllowAnyOrigin()
+        .AllowAnyMethod()
+        .AllowAnyHeader();
+    });
+});
 
 // pipeline
 var app = builder.Build();
@@ -117,6 +122,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("Policy");
 
 app.UseAuthentication();
 app.UseAuthorization();
