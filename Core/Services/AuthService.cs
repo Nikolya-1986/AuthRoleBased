@@ -31,24 +31,34 @@ namespace AuthRoleBased.Core.Services
             _roleManager = roleManager;
             _configuration = configuration; 
         }
-        public async Task<AuthServiceResponseDto> LoginAsync(LoginDto loginDto)
+        public async Task<ResponseDto<TokenDto>> LoginAsync(LoginDto loginDto)
         {
             var user = await _userManager.FindByEmailAsync(loginDto.Email);
 
             if (user is null)
-                return new AuthServiceResponseDto()
+                return new ResponseDto<TokenDto>()
                 {
                     IsSucceed = false,
                     Message = "Invalid Credentials",
+                    Data = new TokenDto()
+                    {
+                        AccessToken = null,
+                        RefreshToken = null,
+                    }
                 };
 
             var isPasswordCorrect = await _userManager.CheckPasswordAsync(user, loginDto.Password);
 
             if (!isPasswordCorrect)
-                return new AuthServiceResponseDto()
+                return new ResponseDto<TokenDto>()
                 {
                     IsSucceed = false,
-                    Message = "Invalid Credentials"
+                    Message = "Invalid Credentials",
+                    Data = new TokenDto()
+                    {
+                        AccessToken = null,
+                        RefreshToken = null,
+                    }
                 };
 
             var userRoles = await _userManager.GetRolesAsync(user);
@@ -70,65 +80,72 @@ namespace AuthRoleBased.Core.Services
             var accessToken = GenerateAccessToken(authClaims);
             var refreshToken = GenerateRefreshToken();
 
-            return new AuthServiceResponseDto()
+            return new ResponseDto<TokenDto>()
             {
                 IsSucceed = true,
                 Message = "User Login Successfully",
-                AccessToken = accessToken,
-                RefreshToken = refreshToken,
-                Role = StaticUserRoles.USER,
+                Data = new TokenDto()
+                {
+                    AccessToken = accessToken,
+                    RefreshToken = refreshToken,
+                }
             };
         }
 
-        public async Task<AuthServiceResponseDto> MakeAdminAsync(UpdatePermissionDto updatePermissionDto)
+        public async Task<ResponseDto<bool>> MakeAdminAsync(UpdatePermissionDto updatePermissionDto)
         {
             var user = await _userManager.FindByNameAsync(updatePermissionDto.UserName);
 
             if (user is null)
-                return new AuthServiceResponseDto()
+                return new ResponseDto<bool>()
                 {
                     IsSucceed = false,
-                    Message = "Invalid User name!!!!!!!!"
+                    Message = "Invalid User name!!!!!!!!",
+                    Data = false,
                 };
 
             await _userManager.AddToRoleAsync(user, StaticUserRoles.ADMIN);
 
-            return new AuthServiceResponseDto()
+            return new ResponseDto<bool>()
             {
                 IsSucceed = true,
-                Message = "User is now an ADMIN"
+                Message = "User is now an ADMIN",
+                Data = true,
             };
         }
 
-        public async Task<AuthServiceResponseDto> MakeOwnerAsync(UpdatePermissionDto updatePermissionDto)
+        public async Task<ResponseDto<bool>> MakeOwnerAsync(UpdatePermissionDto updatePermissionDto)
         {
             var user = await _userManager.FindByNameAsync(updatePermissionDto.UserName);
 
             if (user is null)
-                return new AuthServiceResponseDto()
+                return new ResponseDto<bool>()
                 {
                     IsSucceed = false,
-                    Message = "Invalid User name!!!!!!!!"
+                    Message = "Invalid User name!!!!!!!!",
+                    Data = false,
                 };
 
             await _userManager.AddToRoleAsync(user, StaticUserRoles.OWNER);
 
-            return new AuthServiceResponseDto()
+            return new ResponseDto<bool>()
             {
                 IsSucceed = true,
-                Message = "User is now an OWNER"
+                Message = "User is now an OWNER",
+                Data = true,
             };
         }
 
-        public async Task<AuthServiceResponseDto> RegisterAsync(RegisterDto registerDto)
+        public async Task<ResponseDto<bool>> RegisterAsync(RegisterDto registerDto)
         {
             var isExistsUser = await _userManager.FindByEmailAsync(registerDto.Email);
 
             if (isExistsUser != null)
-                return new AuthServiceResponseDto()
+                return new ResponseDto<bool>()
                 {
                     IsSucceed = false,
-                    Message = "Email Already Exists"
+                    Message = "Email Already Exists",
+                    Data = false,
                 };
             
 
@@ -150,54 +167,59 @@ namespace AuthRoleBased.Core.Services
                 {
                     errorString += " # " + error.Description;
                 }
-                return new AuthServiceResponseDto()
+                return new ResponseDto<bool>()
                 {
                     IsSucceed = false,
-                    Message = errorString
+                    Message = errorString,
+                    Data = false,
                 };
             }
 
             // Add a Default USER Role to all users
             await _userManager.AddToRoleAsync(newUser, StaticUserRoles.USER);
 
-            return new AuthServiceResponseDto()
+            return new ResponseDto<bool>()
             {
                 IsSucceed = true,
-                Message = "User Created Successfully"
+                Message = "User Created Successfully",
+                Data = true,
             };
         }
 
-        public async Task<AuthServiceResponseDto> LogoutAsync()
+        public async Task<ResponseDto<bool>> LogoutAsync()
         {
             await _signInManager.SignOutAsync();
-            return new AuthServiceResponseDto()
+            return new ResponseDto<bool>()
             {
                 IsSucceed = true,
-                Message = "User Logout Successfuly"
+                Message = "User Logout Successfuly",
+                Data = true,
             };
         }
 
-        public async Task<AuthServiceResponseDto> SeedRolesAsync()
+        public async Task<ResponseDto<bool>> SeedRolesAsync()
         {
             bool isOwnerRoleExists = await _roleManager.RoleExistsAsync(StaticUserRoles.OWNER);
             bool isAdminRoleExists = await _roleManager.RoleExistsAsync(StaticUserRoles.ADMIN);
             bool isUserRoleExists = await _roleManager.RoleExistsAsync(StaticUserRoles.USER);
 
             if (isOwnerRoleExists && isAdminRoleExists && isUserRoleExists)
-                return new AuthServiceResponseDto()
+                return new ResponseDto<bool>()
                 {
                     IsSucceed = true,
                     Message = "Roles Seeding is Already Done",
+                    Data = false,
                 };
             
             await _roleManager.CreateAsync(new IdentityRole(StaticUserRoles.USER));
             await _roleManager.CreateAsync(new IdentityRole(StaticUserRoles.ADMIN));
             await _roleManager.CreateAsync(new IdentityRole(StaticUserRoles.OWNER));
 
-            return new AuthServiceResponseDto()
+            return new ResponseDto<bool>()
             {
                 IsSucceed = true,
                 Message = "Role Seeding Done Successfully",
+                Data = false,
             };
         }
 

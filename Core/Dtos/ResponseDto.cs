@@ -1,11 +1,9 @@
-using AuthRoleBased.Core.Dtos.OtherObjects;
-
 namespace AuthRoleBased.Core.Dtos
 {
-    public class AuthServiceResponseDto: TokenDto
+    public class ResponseDto<T>
     {
         public bool IsSucceed { get; set; }
         public required string Message { get; set; }
-        public string? Role { get; set;}
+        public T Data { get; set; }
     }
 }

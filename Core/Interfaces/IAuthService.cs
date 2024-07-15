@@ -4,11 +4,11 @@ namespace AuthRoleBased.Core.Interfaces
 {
     public interface IAuthService
     {
-        Task<AuthServiceResponseDto> SeedRolesAsync();
-        Task<AuthServiceResponseDto> RegisterAsync(RegisterDto registerDto);
-        Task<AuthServiceResponseDto> LoginAsync(LoginDto loginDto);
-        Task<AuthServiceResponseDto> MakeAdminAsync(UpdatePermissionDto updatePermissionDto);
-        Task<AuthServiceResponseDto> MakeOwnerAsync(UpdatePermissionDto updatePermissionDto);
-        Task<AuthServiceResponseDto> LogoutAsync();
+        Task<ResponseDto<bool>> SeedRolesAsync();
+        Task<ResponseDto<bool>> RegisterAsync(RegisterDto registerDto);
+        Task<ResponseDto<TokenDto>> LoginAsync(LoginDto loginDto);
+        Task<ResponseDto<bool>> MakeAdminAsync(UpdatePermissionDto updatePermissionDto);
+        Task<ResponseDto<bool>> MakeOwnerAsync(UpdatePermissionDto updatePermissionDto);
+        Task<ResponseDto<bool>> LogoutAsync();
     }
 }
