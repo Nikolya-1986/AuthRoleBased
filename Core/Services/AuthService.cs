@@ -8,7 +8,7 @@ using AuthRoleBased.Core.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Cryptography;
-using Microsoft.AspNetCore.Mvc;
+using AuthRoleBased.Models.Enums;
 
 namespace AuthRoleBased.Core.Services
 {
@@ -39,7 +39,8 @@ namespace AuthRoleBased.Core.Services
                 return new ResponseDto<TokenDto>()
                 {
                     IsSucceed = false,
-                    Message = "Invalid Credentials",
+                    Message = "Invalid Credentials (User doesn't exist)",
+                    Status = ResultStatus.Failed,
                     Data = new TokenDto()
                     {
                         AccessToken = null,
@@ -53,7 +54,8 @@ namespace AuthRoleBased.Core.Services
                 return new ResponseDto<TokenDto>()
                 {
                     IsSucceed = false,
-                    Message = "Invalid Credentials",
+                    Message = "Invalid Credentials (Inncorect password)",
+                    Status = ResultStatus.Failed,
                     Data = new TokenDto()
                     {
                         AccessToken = null,
@@ -62,20 +64,7 @@ namespace AuthRoleBased.Core.Services
                 };
 
             var userRoles = await _userManager.GetRolesAsync(user);
-
-            var authClaims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, user.UserName),
-                new Claim(ClaimTypes.NameIdentifier, user.Id),
-                new Claim("JWTID", Guid.NewGuid().ToString()),
-                new Claim("FirstName", user.FirstName),
-                new Claim("LastName", user.LastName),
-            };
-
-            foreach (var userRole in userRoles)
-            {
-                authClaims.Add(new Claim(ClaimTypes.Role, userRole));
-            }
+            var authClaims = GetAuthClaims(userRoles, user);
 
             var accessToken = GenerateAccessToken(authClaims);
             var refreshToken = GenerateRefreshToken();
@@ -84,6 +73,7 @@ namespace AuthRoleBased.Core.Services
             {
                 IsSucceed = true,
                 Message = "User Login Successfully",
+                Status = ResultStatus.Successful,
                 Data = new TokenDto()
                 {
                     AccessToken = accessToken,
@@ -101,6 +91,7 @@ namespace AuthRoleBased.Core.Services
                 {
                     IsSucceed = false,
                     Message = "Invalid User name!!!!!!!!",
+                    Status = ResultStatus.Failed,
                     Data = false,
                 };
 
@@ -110,6 +101,7 @@ namespace AuthRoleBased.Core.Services
             {
                 IsSucceed = true,
                 Message = "User is now an ADMIN",
+                Status = ResultStatus.Successful,
                 Data = true,
             };
         }
@@ -123,6 +115,7 @@ namespace AuthRoleBased.Core.Services
                 {
                     IsSucceed = false,
                     Message = "Invalid User name!!!!!!!!",
+                    Status = ResultStatus.Failed,
                     Data = false,
                 };
 
@@ -132,20 +125,26 @@ namespace AuthRoleBased.Core.Services
             {
                 IsSucceed = true,
                 Message = "User is now an OWNER",
+                Status = ResultStatus.Successful,
                 Data = true,
             };
         }
 
-        public async Task<ResponseDto<bool>> RegisterAsync(RegisterDto registerDto)
+        public async Task<ResponseDto<TokenDto>> RegisterAsync(RegisterDto registerDto)
         {
             var isExistsUser = await _userManager.FindByEmailAsync(registerDto.Email);
 
             if (isExistsUser != null)
-                return new ResponseDto<bool>()
+                return new ResponseDto<TokenDto>()
                 {
                     IsSucceed = false,
                     Message = "Email Already Exists",
-                    Data = false,
+                    Status = ResultStatus.Failed,
+                    Data = new TokenDto()
+                    {
+                        AccessToken = null,
+                        RefreshToken = null,
+                    }
                 };
             
 
@@ -167,22 +166,38 @@ namespace AuthRoleBased.Core.Services
                 {
                     errorString += " # " + error.Description;
                 }
-                return new ResponseDto<bool>()
+                return new ResponseDto<TokenDto>()
                 {
                     IsSucceed = false,
                     Message = errorString,
-                    Data = false,
+                    Status = ResultStatus.Failed,
+                    Data = new TokenDto()
+                    {
+                        AccessToken = null,
+                        RefreshToken = null,
+                    }
                 };
             }
 
             // Add a Default USER Role to all users
             await _userManager.AddToRoleAsync(newUser, StaticUserRoles.USER);
 
-            return new ResponseDto<bool>()
+            var userRoles = await _userManager.GetRolesAsync(newUser);
+            var authClaims = GetAuthClaims(userRoles, newUser);
+
+            var accessToken = GenerateAccessToken(authClaims);
+            var refreshToken = GenerateRefreshToken();
+
+            return new ResponseDto<TokenDto>()
             {
                 IsSucceed = true,
                 Message = "User Created Successfully",
-                Data = true,
+                Status = ResultStatus.Successful,
+                Data = new TokenDto()
+                {
+                    AccessToken = accessToken,
+                    RefreshToken = refreshToken,
+                }
             };
         }
 
@@ -193,6 +208,7 @@ namespace AuthRoleBased.Core.Services
             {
                 IsSucceed = true,
                 Message = "User Logout Successfuly",
+                Status = ResultStatus.Successful,
                 Data = true,
             };
         }
@@ -208,6 +224,7 @@ namespace AuthRoleBased.Core.Services
                 {
                     IsSucceed = true,
                     Message = "Roles Seeding is Already Done",
+                    Status = ResultStatus.Failed,
                     Data = false,
                 };
             
@@ -219,6 +236,7 @@ namespace AuthRoleBased.Core.Services
             {
                 IsSucceed = true,
                 Message = "Role Seeding Done Successfully",
+                Status = ResultStatus.Successful,
                 Data = false,
             };
         }
@@ -240,7 +258,7 @@ namespace AuthRoleBased.Core.Services
             return token;
         }
 
-        public string GenerateRefreshToken()
+        private string GenerateRefreshToken()
         {
             var randomNumber = new byte[486];
             using (var rng = RandomNumberGenerator.Create())
@@ -248,6 +266,24 @@ namespace AuthRoleBased.Core.Services
                 rng.GetBytes(randomNumber);
                 return Convert.ToBase64String(randomNumber);
             }
+        }
+
+        private List<Claim> GetAuthClaims(IList<string> userRoles, ApplicationUser user)
+        {
+            var authClaims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, user.UserName),
+                new Claim(ClaimTypes.NameIdentifier, user.Id),
+                new Claim("JWTID", Guid.NewGuid().ToString()),
+                new Claim("FirstName", user.FirstName),
+                new Claim("LastName", user.LastName),
+            };
+
+            foreach (var userRole in userRoles)
+            {
+                authClaims.Add(new Claim(ClaimTypes.Role, userRole));
+            }
+            return authClaims;
         }
     }
 }
