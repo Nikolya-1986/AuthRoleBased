@@ -64,10 +64,7 @@ namespace AuthRoleBased.Core.Services
                 };
 
             var userRoles = await _userManager.GetRolesAsync(user);
-            var authClaims = GetAuthClaims(userRoles, user);
-
-            var accessToken = GenerateAccessToken(authClaims);
-            var refreshToken = GenerateRefreshToken();
+            var (accessToken, refreshToken) = GetPairTokens(userRoles, user);
 
             return new ResponseDto<TokenDto>()
             {
@@ -150,8 +147,10 @@ namespace AuthRoleBased.Core.Services
 
             ApplicationUser newUser = new ApplicationUser()
             {
+                Id = Guid.NewGuid().ToString(),
                 FirstName = registerDto.FirstName,
                 LastName = registerDto.LastName,
+                // Role = StaticUserRoles.USER,
                 Email = registerDto.Email,
                 UserName = registerDto.UserName,
                 SecurityStamp = Guid.NewGuid().ToString(),
@@ -183,10 +182,7 @@ namespace AuthRoleBased.Core.Services
             await _userManager.AddToRoleAsync(newUser, StaticUserRoles.USER);
 
             var userRoles = await _userManager.GetRolesAsync(newUser);
-            var authClaims = GetAuthClaims(userRoles, newUser);
-
-            var accessToken = GenerateAccessToken(authClaims);
-            var refreshToken = GenerateRefreshToken();
+            var (accessToken, refreshToken) = GetPairTokens(userRoles, newUser);
 
             return new ResponseDto<TokenDto>()
             {
@@ -241,6 +237,27 @@ namespace AuthRoleBased.Core.Services
             };
         }
 
+        private (string accessToken, string refreshToken) GetPairTokens(IList<string> userRoles, ApplicationUser user)
+        {
+            var authClaims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, user.UserName),
+                new Claim(ClaimTypes.NameIdentifier, user.Id),
+                new Claim("JWTID", Guid.NewGuid().ToString()),
+                new Claim("FirstName", user.FirstName),
+                new Claim("LastName", user.LastName),
+            };
+
+            foreach (var userRole in userRoles)
+            {
+                authClaims.Add(new Claim(ClaimTypes.Role, userRole));
+            }
+
+            var accessToken = GenerateAccessToken(authClaims);
+            var refreshToken = GenerateRefreshToken();
+            return (accessToken, refreshToken);
+        }
+
         private string GenerateAccessToken(List<Claim> claims)
         {
             var authSecret = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT:Secret"]));
@@ -266,24 +283,6 @@ namespace AuthRoleBased.Core.Services
                 rng.GetBytes(randomNumber);
                 return Convert.ToBase64String(randomNumber);
             }
-        }
-
-        private List<Claim> GetAuthClaims(IList<string> userRoles, ApplicationUser user)
-        {
-            var authClaims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, user.UserName),
-                new Claim(ClaimTypes.NameIdentifier, user.Id),
-                new Claim("JWTID", Guid.NewGuid().ToString()),
-                new Claim("FirstName", user.FirstName),
-                new Claim("LastName", user.LastName),
-            };
-
-            foreach (var userRole in userRoles)
-            {
-                authClaims.Add(new Claim(ClaimTypes.Role, userRole));
-            }
-            return authClaims;
         }
     }
 }
