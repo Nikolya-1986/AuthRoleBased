@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Cryptography;
 using AuthRoleBased.Models.Enums;
+using AuthRoleBased.Core.Dtos.Auth;
 
 namespace AuthRoleBased.Core.Services
 {
@@ -31,52 +32,104 @@ namespace AuthRoleBased.Core.Services
             _roleManager = roleManager;
             _configuration = configuration; 
         }
-        public async Task<ResponseDto<TokenDto>> LoginAsync(LoginDto loginDto)
+        public async Task<ResponseDto<LoginSuccessfulDto<TokenDto>>> LoginAsync(LoginDto loginDto)
         {
-            var user = await _userManager.FindByEmailAsync(loginDto.Email);
+            try {
+                var user = await _userManager.FindByEmailAsync(loginDto.Email);
 
-            if (user is null)
-                return new ResponseDto<TokenDto>()
-                {
-                    IsSucceed = false,
-                    Message = "Invalid Credentials (User doesn't exist)",
-                    Status = ResultStatus.Failed,
-                    Data = new TokenDto()
+                if (user is null)
+                    return new ResponseDto<LoginSuccessfulDto<TokenDto>>()
                     {
-                        AccessToken = null,
-                        RefreshToken = null,
+                        IsSucceed = false,
+                        Message = "Invalid Credentials (User doesn't exist)",
+                        Status = ResultStatus.Unauthorized,
+                        Data = new LoginSuccessfulDto<TokenDto>()
+                        {
+                            Id = "",
+                            FirstName = "",
+                            LastName = "",
+                            UserName = "",
+                            Role = "",
+                            Email = "",
+                            Tokens = new TokenDto()
+                            {
+                                AccessToken = null,
+                                RefreshToken = null,
+                            }
+                        }
+                    };
+
+                var isPasswordCorrect = await _userManager.CheckPasswordAsync(user, loginDto.Password);
+
+                if (!isPasswordCorrect)
+                    return new ResponseDto<LoginSuccessfulDto<TokenDto>>()
+                    {
+                        IsSucceed = false,
+                        Message = "Invalid Credentials (Inncorect password)",
+                        Status = ResultStatus.Unauthorized,
+                        Data = new LoginSuccessfulDto<TokenDto>()
+                        {
+                            Id = "",
+                            FirstName = "",
+                            LastName = "",
+                            UserName = "",
+                            Role = "",
+                            Email = "",
+                            Tokens = new TokenDto()
+                            {
+                                AccessToken = null,
+                                RefreshToken = null,
+                            }
+                        }
+                    };
+
+                var userRoles = await _userManager.GetRolesAsync(user);
+                var (accessToken, refreshToken) = GetPairTokens(userRoles, user);
+
+                return new ResponseDto<LoginSuccessfulDto<TokenDto>>()
+                {
+                    IsSucceed = true,
+                    Message = "User Login Successfully",
+                    Status = ResultStatus.OK,
+                    Data = new LoginSuccessfulDto<TokenDto>()
+                    {
+                        Id = user.Id,
+                        FirstName = user.FirstName,
+                        LastName = user.LastName,
+                        UserName = user.UserName,
+                        Role = StaticUserRoles.USER,
+                        Email = user.Email,
+                        Tokens = new TokenDto()
+                        {
+                            AccessToken = accessToken,
+                            RefreshToken = refreshToken,
+                        }
                     }
                 };
-
-            var isPasswordCorrect = await _userManager.CheckPasswordAsync(user, loginDto.Password);
-
-            if (!isPasswordCorrect)
-                return new ResponseDto<TokenDto>()
-                {
-                    IsSucceed = false,
-                    Message = "Invalid Credentials (Inncorect password)",
-                    Status = ResultStatus.Failed,
-                    Data = new TokenDto()
-                    {
-                        AccessToken = null,
-                        RefreshToken = null,
-                    }
-                };
-
-            var userRoles = await _userManager.GetRolesAsync(user);
-            var (accessToken, refreshToken) = GetPairTokens(userRoles, user);
-
-            return new ResponseDto<TokenDto>()
+            }
+            catch (Exception ex)
             {
-                IsSucceed = true,
-                Message = "User Login Successfully",
-                Status = ResultStatus.Successful,
-                Data = new TokenDto()
+                return new ResponseDto<LoginSuccessfulDto<TokenDto>>()
                 {
-                    AccessToken = accessToken,
-                    RefreshToken = refreshToken,
-                }
-            };
+                    IsSucceed = true,
+                    Message = ex.Message,
+                    Status = ResultStatus.InternalServerError,
+                    Data = new LoginSuccessfulDto<TokenDto>()
+                    {
+                        Id = "",
+                        FirstName = "",
+                        LastName = "",
+                        UserName = "",
+                        Role = "",
+                        Email = "",
+                        Tokens = new TokenDto()
+                        {
+                            AccessToken = null,
+                            RefreshToken = null,
+                        }
+                    }
+                };
+            }
         }
 
         public async Task<ResponseDto<bool>> MakeAdminAsync(UpdatePermissionDto updatePermissionDto)
@@ -88,7 +141,7 @@ namespace AuthRoleBased.Core.Services
                 {
                     IsSucceed = false,
                     Message = "Invalid User name!!!!!!!!",
-                    Status = ResultStatus.Failed,
+                    Status = ResultStatus.OK,
                     Data = false,
                 };
 
@@ -98,7 +151,7 @@ namespace AuthRoleBased.Core.Services
             {
                 IsSucceed = true,
                 Message = "User is now an ADMIN",
-                Status = ResultStatus.Successful,
+                Status = ResultStatus.OK,
                 Data = true,
             };
         }
@@ -112,7 +165,7 @@ namespace AuthRoleBased.Core.Services
                 {
                     IsSucceed = false,
                     Message = "Invalid User name!!!!!!!!",
-                    Status = ResultStatus.Failed,
+                    Status = ResultStatus.BadRequest,
                     Data = false,
                 };
 
@@ -122,7 +175,7 @@ namespace AuthRoleBased.Core.Services
             {
                 IsSucceed = true,
                 Message = "User is now an OWNER",
-                Status = ResultStatus.Successful,
+                Status = ResultStatus.OK,
                 Data = true,
             };
         }
@@ -136,7 +189,7 @@ namespace AuthRoleBased.Core.Services
                 {
                     IsSucceed = false,
                     Message = "Email Already Exists",
-                    Status = ResultStatus.Failed,
+                    Status = ResultStatus.BadRequest,
                     Data = new TokenDto()
                     {
                         AccessToken = null,
@@ -169,7 +222,7 @@ namespace AuthRoleBased.Core.Services
                 {
                     IsSucceed = false,
                     Message = errorString,
-                    Status = ResultStatus.Failed,
+                    Status = ResultStatus.BadRequest,
                     Data = new TokenDto()
                     {
                         AccessToken = null,
@@ -188,7 +241,7 @@ namespace AuthRoleBased.Core.Services
             {
                 IsSucceed = true,
                 Message = "User Created Successfully",
-                Status = ResultStatus.Successful,
+                Status = ResultStatus.OK,
                 Data = new TokenDto()
                 {
                     AccessToken = accessToken,
@@ -204,7 +257,7 @@ namespace AuthRoleBased.Core.Services
             {
                 IsSucceed = true,
                 Message = "User Logout Successfuly",
-                Status = ResultStatus.Successful,
+                Status = ResultStatus.OK,
                 Data = true,
             };
         }
@@ -220,7 +273,7 @@ namespace AuthRoleBased.Core.Services
                 {
                     IsSucceed = true,
                     Message = "Roles Seeding is Already Done",
-                    Status = ResultStatus.Failed,
+                    Status = ResultStatus.BadRequest,
                     Data = false,
                 };
             
@@ -232,7 +285,7 @@ namespace AuthRoleBased.Core.Services
             {
                 IsSucceed = true,
                 Message = "Role Seeding Done Successfully",
-                Status = ResultStatus.Successful,
+                Status = ResultStatus.OK,
                 Data = false,
             };
         }
