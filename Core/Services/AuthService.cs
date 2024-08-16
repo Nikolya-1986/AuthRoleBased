@@ -49,7 +49,7 @@ namespace AuthRoleBased.Core.Services
                             FirstName = "",
                             LastName = "",
                             UserName = "",
-                            Role = "",
+                            Role = null,
                             Email = "",
                             Tokens = new TokenDto()
                             {
@@ -73,7 +73,7 @@ namespace AuthRoleBased.Core.Services
                             FirstName = "",
                             LastName = "",
                             UserName = "",
-                            Role = "",
+                            Role = null,
                             Email = "",
                             Tokens = new TokenDto()
                             {
@@ -83,8 +83,9 @@ namespace AuthRoleBased.Core.Services
                         }
                     };
 
-                var userRoles = await _userManager.GetRolesAsync(user);
-                var (accessToken, refreshToken) = GetPairTokens(userRoles, user);
+                IList<string> userRole = await _userManager.GetRolesAsync(user);
+                var (accessToken, refreshToken) = GetPairTokens(userRole, user);
+                Console.WriteLine(userRole);
 
                 return new ResponseDto<LoginSuccessfulDto<TokenDto>>()
                 {
@@ -97,7 +98,7 @@ namespace AuthRoleBased.Core.Services
                         FirstName = user.FirstName,
                         LastName = user.LastName,
                         UserName = user.UserName,
-                        Role = StaticUserRoles.USER,
+                        Role = userRole,
                         Email = user.Email,
                         Tokens = new TokenDto()
                         {
@@ -120,7 +121,7 @@ namespace AuthRoleBased.Core.Services
                         FirstName = "",
                         LastName = "",
                         UserName = "",
-                        Role = "",
+                        Role = null,
                         Email = "",
                         Tokens = new TokenDto()
                         {
@@ -197,13 +198,12 @@ namespace AuthRoleBased.Core.Services
                     }
                 };
             
-
             ApplicationUser newUser = new ApplicationUser()
             {
                 Id = Guid.NewGuid().ToString(),
                 FirstName = registerDto.FirstName,
                 LastName = registerDto.LastName,
-                // Role = StaticUserRoles.USER,
+                Role = StaticUserRoles.USER,
                 Email = registerDto.Email,
                 UserName = registerDto.UserName,
                 SecurityStamp = Guid.NewGuid().ToString(),
