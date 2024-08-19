@@ -32,67 +32,40 @@ namespace AuthRoleBased.Core.Services
             _roleManager = roleManager;
             _configuration = configuration; 
         }
-        public async Task<ResponseDto<LoginSuccessfulDto<TokenDto>>> LoginAsync(LoginDto loginDto)
+        public async Task<ResponseDto<AuthSuccessfulDto<TokenDto>>> LoginAsync(LoginDto loginDto)
         {
             try {
                 var user = await _userManager.FindByEmailAsync(loginDto.Email);
 
                 if (user is null)
-                    return new ResponseDto<LoginSuccessfulDto<TokenDto>>()
+                    return new ResponseDto<AuthSuccessfulDto<TokenDto>>()
                     {
                         IsSucceed = false,
                         Message = "Invalid Credentials (User doesn't exist)",
                         Status = ResultStatus.Unauthorized,
-                        Data = new LoginSuccessfulDto<TokenDto>()
-                        {
-                            Id = "",
-                            FirstName = "",
-                            LastName = "",
-                            UserName = "",
-                            Role = null,
-                            Email = "",
-                            Tokens = new TokenDto()
-                            {
-                                AccessToken = null,
-                                RefreshToken = null,
-                            }
-                        }
+                        Data = new AuthSuccessfulDto<TokenDto>(),
                     };
 
                 var isPasswordCorrect = await _userManager.CheckPasswordAsync(user, loginDto.Password);
 
                 if (!isPasswordCorrect)
-                    return new ResponseDto<LoginSuccessfulDto<TokenDto>>()
+                    return new ResponseDto<AuthSuccessfulDto<TokenDto>>()
                     {
                         IsSucceed = false,
                         Message = "Invalid Credentials (Inncorect password)",
                         Status = ResultStatus.Unauthorized,
-                        Data = new LoginSuccessfulDto<TokenDto>()
-                        {
-                            Id = "",
-                            FirstName = "",
-                            LastName = "",
-                            UserName = "",
-                            Role = null,
-                            Email = "",
-                            Tokens = new TokenDto()
-                            {
-                                AccessToken = null,
-                                RefreshToken = null,
-                            }
-                        }
+                        Data = new AuthSuccessfulDto<TokenDto>(),
                     };
 
                 IList<string> userRole = await _userManager.GetRolesAsync(user);
                 var (accessToken, refreshToken) = GetPairTokens(userRole, user);
-                Console.WriteLine(userRole);
 
-                return new ResponseDto<LoginSuccessfulDto<TokenDto>>()
+                return new ResponseDto<AuthSuccessfulDto<TokenDto>>()
                 {
                     IsSucceed = true,
                     Message = "User Login Successfully",
                     Status = ResultStatus.OK,
-                    Data = new LoginSuccessfulDto<TokenDto>()
+                    Data = new AuthSuccessfulDto<TokenDto>()
                     {
                         Id = user.Id,
                         FirstName = user.FirstName,
@@ -110,25 +83,12 @@ namespace AuthRoleBased.Core.Services
             }
             catch (Exception ex)
             {
-                return new ResponseDto<LoginSuccessfulDto<TokenDto>>()
+                return new ResponseDto<AuthSuccessfulDto<TokenDto>>()
                 {
                     IsSucceed = true,
                     Message = ex.Message,
                     Status = ResultStatus.InternalServerError,
-                    Data = new LoginSuccessfulDto<TokenDto>()
-                    {
-                        Id = "",
-                        FirstName = "",
-                        LastName = "",
-                        UserName = "",
-                        Role = null,
-                        Email = "",
-                        Tokens = new TokenDto()
-                        {
-                            AccessToken = null,
-                            RefreshToken = null,
-                        }
-                    }
+                    Data = new AuthSuccessfulDto<TokenDto>(),
                 };
             }
         }
@@ -181,21 +141,17 @@ namespace AuthRoleBased.Core.Services
             };
         }
 
-        public async Task<ResponseDto<TokenDto>> RegisterAsync(RegisterDto registerDto)
+        public async Task<ResponseDto<AuthSuccessfulDto<TokenDto>>> RegisterAsync(RegisterDto registerDto)
         {
             var isExistsUser = await _userManager.FindByEmailAsync(registerDto.Email);
 
             if (isExistsUser != null)
-                return new ResponseDto<TokenDto>()
+                return new ResponseDto<AuthSuccessfulDto<TokenDto>>()
                 {
                     IsSucceed = false,
                     Message = "Email Already Exists",
                     Status = ResultStatus.BadRequest,
-                    Data = new TokenDto()
-                    {
-                        AccessToken = null,
-                        RefreshToken = null,
-                    }
+                    Data = new AuthSuccessfulDto<TokenDto>(),
                 };
             
             ApplicationUser newUser = new ApplicationUser()
@@ -218,16 +174,12 @@ namespace AuthRoleBased.Core.Services
                 {
                     errorString += " # " + error.Description;
                 }
-                return new ResponseDto<TokenDto>()
+                return new ResponseDto<AuthSuccessfulDto<TokenDto>>()
                 {
                     IsSucceed = false,
                     Message = errorString,
                     Status = ResultStatus.BadRequest,
-                    Data = new TokenDto()
-                    {
-                        AccessToken = null,
-                        RefreshToken = null,
-                    }
+                    Data = new AuthSuccessfulDto<TokenDto>(),
                 };
             }
 
@@ -237,15 +189,24 @@ namespace AuthRoleBased.Core.Services
             var userRoles = await _userManager.GetRolesAsync(newUser);
             var (accessToken, refreshToken) = GetPairTokens(userRoles, newUser);
 
-            return new ResponseDto<TokenDto>()
+            return new ResponseDto<AuthSuccessfulDto<TokenDto>>()
             {
                 IsSucceed = true,
                 Message = "User Created Successfully",
                 Status = ResultStatus.OK,
-                Data = new TokenDto()
+                Data = new AuthSuccessfulDto<TokenDto>()
                 {
-                    AccessToken = accessToken,
-                    RefreshToken = refreshToken,
+                    Id = Guid.NewGuid().ToString(),
+                    FirstName = registerDto.FirstName,
+                    LastName = registerDto.LastName,
+                    Role = [StaticUserRoles.USER],
+                    Email = registerDto.Email,
+                    UserName = registerDto.UserName,
+                    Tokens = new TokenDto()
+                    {
+                        AccessToken = accessToken,
+                        RefreshToken = refreshToken,
+                    }
                 }
             };
         }
