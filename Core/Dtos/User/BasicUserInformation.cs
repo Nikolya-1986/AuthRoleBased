@@ -4,7 +4,6 @@ namespace AuthRoleBased.Core.Dtos.User
 {
     public class BasicUserInformation
     {
-
         public string Id { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }

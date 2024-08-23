@@ -10,6 +10,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.Security.Cryptography;
 using AuthRoleBased.Models.Enums;
 using AuthRoleBased.Core.Dtos.Auth;
+using AuthRoleBased.Core.DBContext;
+using AuthRoleBased.Core.Dtos.User;
 
 namespace AuthRoleBased.Core.Services
 {
@@ -19,17 +21,21 @@ namespace AuthRoleBased.Core.Services
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IConfiguration _configuration;
+        private readonly DbContextApplication _dbContextApplication;
+        private string identityName;
 
         public AuthService(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
             RoleManager<IdentityRole> roleManager,
+            DbContextApplication dbContextApplication,
             IConfiguration configuration
             )
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _roleManager = roleManager;
+            _dbContextApplication = dbContextApplication;
             _configuration = configuration; 
         }
         public async Task<ResponseDto<AuthSuccessfulDto<TokenDto>>> LoginAsync(LoginDto loginDto)
@@ -59,7 +65,6 @@ namespace AuthRoleBased.Core.Services
 
                 IList<string> userRole = await _userManager.GetRolesAsync(user);
                 var (accessToken, refreshToken) = GetPairTokens(userRole, user);
-
                 return new ResponseDto<AuthSuccessfulDto<TokenDto>>()
                 {
                     IsSucceed = true,
@@ -251,6 +256,58 @@ namespace AuthRoleBased.Core.Services
             };
         }
 
+        public async Task<ResponseDto<TokenDto>> RefreshTokensAsync(string accessToken, string refreshToken)
+        {
+            var principal = GetPrincipalFromExpiredToken(accessToken);
+            identityName = principal.Identity.Name; //this is mapped to the Name claim by default
+
+            var user = _dbContextApplication.BasicUserInformation.SingleOrDefault(item => item.UserName == identityName);
+            if (user == null || refreshToken == null) return BadRequest();
+
+            var newJwtToken = GenerateAccessToken(principal.Claims);
+            var newRefreshToken = GenerateRefreshToken();
+
+            await _dbContextApplication.SaveChangesAsync();
+
+            return new ResponseDto<TokenDto>()
+            {
+                IsSucceed = true,
+                Message = "Tokens updated successfully",
+                Status = ResultStatus.OK,
+                Data = new TokenDto()
+                {
+                    AccessToken = newJwtToken,
+                    RefreshToken = newRefreshToken
+                }
+            };
+        }
+
+        private ResponseDto<TokenDto> BadRequest()
+        {
+            throw new NotImplementedException();
+        }
+
+        private ClaimsPrincipal GetPrincipalFromExpiredToken(string token)
+        {
+            var tokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateAudience = false, //you might want to validate the audience and issuer depending on your use case
+                ValidateIssuer = false,
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Secret"])),
+                ValidateLifetime = false //here we are saying that we don't care about the token's expiration date
+            };
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+            SecurityToken securityToken;
+            var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out securityToken);
+            var jwtSecurityToken = securityToken as JwtSecurityToken;
+            if (jwtSecurityToken == null || !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
+                throw new SecurityTokenException("Invalid token");
+
+            return principal;
+        }
+
         private (string accessToken, string refreshToken) GetPairTokens(IList<string> userRoles, ApplicationUser user)
         {
             var authClaims = new List<Claim>
@@ -272,14 +329,14 @@ namespace AuthRoleBased.Core.Services
             return (accessToken, refreshToken);
         }
 
-        private string GenerateAccessToken(List<Claim> claims)
+        private string GenerateAccessToken(IEnumerable<Claim> claims)
         {
             var authSecret = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT:Secret"]));
 
             var tokenObject = new JwtSecurityToken(
                     issuer: _configuration["JWT:ValidIssuer"],
                     audience: _configuration["JWT:ValidAudience"],
-                    expires: DateTime.Now.AddHours(1),
+                    expires: DateTime.Now.AddMinutes(5),
                     claims: claims,
                     signingCredentials: new SigningCredentials(authSecret, SecurityAlgorithms.HmacSha256)
                 );
@@ -291,7 +348,7 @@ namespace AuthRoleBased.Core.Services
 
         private string GenerateRefreshToken()
         {
-            var randomNumber = new byte[486];
+            var randomNumber = new byte[64];
             using (var rng = RandomNumberGenerator.Create())
             {
                 rng.GetBytes(randomNumber);
