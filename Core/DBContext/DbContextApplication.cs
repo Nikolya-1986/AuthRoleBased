@@ -1,4 +1,5 @@
 using AuthRoleBased.Core.Dtos;
+using AuthRoleBased.Core.Dtos.Auth;
 using AuthRoleBased.Core.Dtos.User;
 using AuthRoleBased.Core.Entities;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -14,5 +15,6 @@ namespace AuthRoleBased.Core.DBContext
             _options = options;
         }
         public DbSet<BasicUserInformation>? BasicUserInformation { get; set; }
+        public DbSet<RefreshToken>? RefreshPairTokens { get; set; }
     }
 }

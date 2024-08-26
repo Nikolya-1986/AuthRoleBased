@@ -93,9 +93,9 @@ namespace AuthRoleBased.Controllers
         // Route -> update-tokens
         [HttpPost]
         [Route("update-tokens")]
-        public async Task<IActionResult> UpdateTokens(string token, string refreshToken)
+        public async Task<IActionResult> UpdateTokens(string refreshToken)
         {
-            var tokensResult = await _authService.RefreshTokensAsync(token, refreshToken);
+            var tokensResult = await _authService.RefreshTokensAsync(refreshToken);
             if (tokensResult.IsSucceed)
                return Ok(tokensResult);
             return BadRequest(tokensResult);
