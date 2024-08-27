@@ -1,13 +1,17 @@
+using System.Security.Claims;
 using AuthRoleBased.Core.Dtos;
+using AuthRoleBased.Core.Dtos.Auth;
 
 namespace AuthRoleBased.Core.Interfaces
 {
     public interface IAuthService
     {
-        Task<AuthServiceResponseDto> SeedRolesAsync();
-        Task<AuthServiceResponseDto> RegisterAsync(RegisterDto registerDto);
-        Task<AuthServiceResponseDto> LoginAsync(LoginDto loginDto);
-        Task<AuthServiceResponseDto> MakeAdminAsync(UpdatePermissionDto updatePermissionDto);
-        Task<AuthServiceResponseDto> MakeOwnerAsync(UpdatePermissionDto updatePermissionDto);
+        Task<ResponseDto<bool>> SeedRolesAsync();
+        Task<ResponseDto<AuthSuccessfulDto<TokenDto>>> RegisterAsync(RegisterDto registerDto);
+        Task<ResponseDto<AuthSuccessfulDto<TokenDto>>> LoginAsync(LoginDto loginDto);
+        Task<ResponseDto<bool>> MakeAdminAsync(UpdatePermissionDto updatePermissionDto);
+        Task<ResponseDto<bool>> MakeOwnerAsync(UpdatePermissionDto updatePermissionDto);
+        Task<ResponseDto<bool>> LogoutAsync();
+        Task<ResponseDto<TokenDto>> UpdateTokensAsync(string refreshToken);
     }
 }

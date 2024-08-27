@@ -59,13 +59,13 @@ builder.Services
         {
             ValidateIssuer = true,
             ValidateAudience = true,
+            ValidateIssuerSigningKey = true,
+            ValidateLifetime = true,
             ValidIssuer = builder.Configuration["JWT:ValidIssuer"],
             ValidAudience = builder.Configuration["JWT:ValidAudience"],
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Secret"]))
         };
     });
-
-
 
 
 // Inject app Dependencies (Dependency Injection)
@@ -101,10 +101,17 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-
-
-
-
+// CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Policy", builder =>
+    {
+        builder
+        .AllowAnyOrigin()
+        .AllowAnyMethod()
+        .AllowAnyHeader();
+    });
+});
 
 // pipeline
 var app = builder.Build();
@@ -117,6 +124,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("Policy");
 
 app.UseAuthentication();
 app.UseAuthorization();

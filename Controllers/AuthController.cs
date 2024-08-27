@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AuthRoleBased.Controllers
 {
+    [Route("auth-role-based/")]
+    [ApiController]
     public class AuthController: ControllerBase
     {
         private readonly IAuthService _authService;
@@ -49,6 +51,19 @@ namespace AuthRoleBased.Controllers
             return Unauthorized(loginResult);
         }
 
+        // Route -> Logout
+        [HttpPost]
+        [Route("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            var loginResult = await _authService.LogoutAsync();
+
+            if(loginResult.IsSucceed)
+                return Ok(loginResult);
+
+            return Unauthorized(loginResult);
+        }
+
         // Route -> make user -> admin
         [HttpPost]
         [Route("make-admin")]
@@ -73,6 +88,17 @@ namespace AuthRoleBased.Controllers
                 return Ok(operationResult);
 
             return BadRequest(operationResult);
+        }
+
+        // Route -> update-tokens
+        [HttpPost]
+        [Route("update-tokens")]
+        public async Task<IActionResult> UpdateTokens(string refreshToken)
+        {
+            var tokensResult = await _authService.UpdateTokensAsync(refreshToken);
+            if (tokensResult.IsSucceed)
+               return Ok(tokensResult);
+            return BadRequest(tokensResult);
         }
     }
 }
