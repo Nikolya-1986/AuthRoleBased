@@ -11,8 +11,7 @@ using System.Security.Cryptography;
 using AuthRoleBased.Models.Enums;
 using AuthRoleBased.Core.Dtos.Auth;
 using AuthRoleBased.Core.DBContext;
-using AuthRoleBased.Core.Dtos.User;
-using Microsoft.Extensions.FileSystemGlobbing.Internal.PathSegments;
+using RandomString4Net;
 
 namespace AuthRoleBased.Core.Services
 {
@@ -69,7 +68,7 @@ namespace AuthRoleBased.Core.Services
 
                 IList<string> userRole = await _userManager.GetRolesAsync(user);
                 var (accessToken, refreshToken) = GetPairTokens(userRole, user);
-                SaveDataInCookies(refreshToken, loginDto);
+                SaveDataInCookies(refreshToken, user);
                 return new ResponseDto<AuthSuccessfulDto<TokenDto>>()
                 {
                     IsSucceed = true,
@@ -223,6 +222,15 @@ namespace AuthRoleBased.Core.Services
 
         public async Task<ResponseDto<bool>> LogoutAsync()
         {
+            var refreshToken = _httpContextAccessor.HttpContext.Request.Cookies["refreshToken"];
+            if (!string.IsNullOrEmpty(refreshToken))
+            {
+                // Remove the refresh token from the database
+                RemoveRefreshToken(refreshToken);
+
+                // Clear the HTTP-only cookie
+                _httpContextAccessor.HttpContext.Response.Cookies.Delete("refreshToken");
+            }
             await _signInManager.SignOutAsync();
             return new ResponseDto<bool>()
             {
@@ -261,7 +269,7 @@ namespace AuthRoleBased.Core.Services
             };
         }
 
-        public async Task<ResponseDto<TokenDto>> RefreshTokensAsync(string refreshToken)
+        public async Task<ResponseDto<TokenDto>> UpdateTokensAsync(string refreshToken)
         {
             var oldRefreshToken =_httpContextAccessor.HttpContext.Request.Cookies["refreshToken"];
             if (string.IsNullOrEmpty(oldRefreshToken))
@@ -287,7 +295,7 @@ namespace AuthRoleBased.Core.Services
 
             var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.Name, storedRefreshToken.Email),
+                new Claim(ClaimTypes.Name, storedRefreshToken.UserName),
             };
 
             var newAccessToken = GenerateAccessToken(claims);
@@ -319,27 +327,6 @@ namespace AuthRoleBased.Core.Services
         private ResponseDto<TokenDto> BadRequest()
         {
             throw new NotImplementedException();
-        }
-
-        private ClaimsPrincipal GetPrincipalFromExpiredToken(string token)
-        {
-            var tokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateAudience = false, //you might want to validate the audience and issuer depending on your use case
-                ValidateIssuer = false,
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Secret"])),
-                ValidateLifetime = false //here we are saying that we don't care about the token's expiration date
-            };
-
-            var tokenHandler = new JwtSecurityTokenHandler();
-            SecurityToken securityToken;
-            var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out securityToken);
-            var jwtSecurityToken = securityToken as JwtSecurityToken;
-            if (jwtSecurityToken == null || !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
-                throw new SecurityTokenException("Invalid token");
-
-            return principal;
         }
 
         private (string accessToken, string refreshToken) GetPairTokens(IList<string> userRoles, ApplicationUser user)
@@ -391,14 +378,15 @@ namespace AuthRoleBased.Core.Services
             }
         }
 
-        private void SaveDataInCookies(string refreshToken, LoginDto loginDto)
+        private void SaveDataInCookies(string refreshToken,  ApplicationUser request)
         {
-            SaveRefreshToken(new RefreshToken
-            {
-                Token = refreshToken,
-                Email = loginDto.Email,
-                ExpirationDate = DateTime.UtcNow.AddDays(int.Parse(_configuration["JWT:RefreshTokenDurationInMinutes"]))
-            });
+            // SaveRefreshToken(new RefreshToken
+            // {
+            //     Id = RandomString.GetString(Types.ALPHABET_LOWERCASE, 15),
+            //     Token = refreshToken,
+            //     UserName = request.UserName,
+            //     ExpirationDate = DateTime.UtcNow.AddDays(int.Parse(_configuration["JWT:RefreshTokenDurationInMinutes"]))
+            // });
 
             // Set the refresh token as an HTTP-only cookie
             _httpContextAccessor.HttpContext.Response.Cookies.Append("refreshToken", refreshToken, new CookieOptions
@@ -409,19 +397,32 @@ namespace AuthRoleBased.Core.Services
             });
         }
 
-        private void SaveRefreshToken(RefreshToken refreshToken)
-        {
-                // Implement your logic to save the refresh token to the database
-                // For example, using Entity Framework Core:
-                _dbContextApplication.RefreshPairTokens.Add(refreshToken);
-                _dbContextApplication.SaveChanges();
-        }
-
         private RefreshToken GetStoredRefreshToken(string refreshToken)
         {
-            // Implement your logic to retrieve the refresh token from the database
-            // For example, using Entity Framework Core:
-            return _dbContextApplication.RefreshPairTokens.SingleOrDefault(rt => rt.Token == refreshToken);
+            return _dbContextApplication.RefreshTokens.SingleOrDefault(item => item.Token == refreshToken);
+        }
+
+        private void RemoveRefreshToken(string token)
+        {
+            var refreshToken = GetStoredRefreshToken(token);
+            if (refreshToken == null)
+            {
+                _dbContextApplication.RefreshTokens.Remove(refreshToken);
+            }
+        }
+
+        private void SaveRefreshToken(RefreshToken refreshToken)
+        {
+            _dbContextApplication.RefreshTokens.Add(refreshToken);
+            _dbContextApplication.SaveChanges();
+        }
+
+        private void UpdateRefreshToken(RefreshToken refreshToken)
+        {
+            _dbContextApplication.RefreshTokens.Update(refreshToken);
+            _dbContextApplication.SaveChanges();
         }
     }
 }
+
+// https://blog.devgenius.io/applying-jwt-access-tokens-and-refresh-tokens-in-asp-net-core-web-api-fc757c9191b9

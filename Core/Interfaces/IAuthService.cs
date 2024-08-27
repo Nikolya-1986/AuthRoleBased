@@ -12,6 +12,6 @@ namespace AuthRoleBased.Core.Interfaces
         Task<ResponseDto<bool>> MakeAdminAsync(UpdatePermissionDto updatePermissionDto);
         Task<ResponseDto<bool>> MakeOwnerAsync(UpdatePermissionDto updatePermissionDto);
         Task<ResponseDto<bool>> LogoutAsync();
-        Task<ResponseDto<TokenDto>> RefreshTokensAsync(string refreshToken);
+        Task<ResponseDto<TokenDto>> UpdateTokensAsync(string refreshToken);
     }
 }
