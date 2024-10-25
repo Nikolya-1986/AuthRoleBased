@@ -424,5 +424,3 @@ namespace AuthRoleBased.Core.Services
         }
     }
 }
-
-// https://blog.devgenius.io/applying-jwt-access-tokens-and-refresh-tokens-in-asp-net-core-web-api-fc757c9191b9
